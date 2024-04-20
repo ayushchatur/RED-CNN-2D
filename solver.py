@@ -50,7 +50,7 @@ class Solver(object):
         self.REDCNN.to(self.device)
 
         self.lr = args.lr
-        self.criterion = nn.MSELoss()
+        self.criterion = nn.MSELoss() 
         self.optimizer = optim.Adam(self.REDCNN.parameters(), self.lr)
 
 
@@ -87,68 +87,122 @@ class Solver(object):
         mat[mat >= self.trunc_max] = self.trunc_max
         return mat
 
-
     def save_fig(self, x, y, pred, fig_name, original_result, pred_result):
-        x, y, pred = x.numpy(), y.numpy(), pred.numpy()
+    # Select a single example from the batch for visualization
+    # Assuming x, y, and pred are torch tensors of shape [batch_size, channels, height, width]
+        x_single = x[0, 0].cpu().numpy()  # Shape: [height, width]
+        y_single = y[0, 0].cpu().numpy()  # Shape: [height, width]
+        pred_single = pred[0, 0].cpu().numpy()  # Shape: [height, width]
+
+        # Visualization
         f, ax = plt.subplots(1, 3, figsize=(30, 10))
-        ax[0].imshow(x, cmap=plt.cm.gray, vmin=self.trunc_min, vmax=self.trunc_max)
-        ax[0].set_title('Quarter-dose', fontsize=30)
-        ax[0].set_xlabel("PSNR: {:.4f}\nSSIM: {:.4f}\nRMSE: {:.4f}".format(original_result[0],
-                                                                           original_result[1],
-                                                                           original_result[2]), fontsize=20)
-        ax[1].imshow(pred, cmap=plt.cm.gray, vmin=self.trunc_min, vmax=self.trunc_max)
-        ax[1].set_title('Result', fontsize=30)
-        ax[1].set_xlabel("PSNR: {:.4f}\nSSIM: {:.4f}\nRMSE: {:.4f}".format(pred_result[0],
-                                                                           pred_result[1],
-                                                                           pred_result[2]), fontsize=20)
-        ax[2].imshow(y, cmap=plt.cm.gray, vmin=self.trunc_min, vmax=self.trunc_max)
-        ax[2].set_title('Full-dose', fontsize=30)
+        ax[0].imshow(x_single, cmap=plt.cm.gray, vmin=self.trunc_min, vmax=self.trunc_max)
+        ax[0].set_title('Input Image', fontsize=30)
+        ax[1].imshow(pred_single, cmap=plt.cm.gray, vmin=self.trunc_min, vmax=self.trunc_max)
+        ax[1].set_title('Predicted Image', fontsize=30)
+        ax[2].imshow(y_single, cmap=plt.cm.gray, vmin=self.trunc_min, vmax=self.trunc_max)
+        ax[2].set_title('Ground Truth Image', fontsize=30)
 
+        # Optionally, save the figure
         f.savefig(os.path.join(self.save_path, 'fig', 'result_{}.png'.format(fig_name)))
-        plt.close()
+        plt.close(f)  # Close the figure to free memory
 
+    # def save_fig(self, x, y, pred, fig_name, original_result, pred_result):
+    #     x, y, pred = x.numpy(), y.numpy(), pred.numpy()
+    #     f, ax = plt.subplots(1, 3, figsize=(30, 10))
+    #     ax[0].imshow(x, cmap=plt.cm.gray, vmin=self.trunc_min, vmax=self.trunc_max)
+    #     ax[0].set_title('Quarter-dose', fontsize=30)
+    #     ax[0].set_xlabel("PSNR: {:.4f}\nSSIM: {:.4f}\nRMSE: {:.4f}".format(original_result[0],
+    #                                                                        original_result[1],
+    #                                                                        original_result[2]), fontsize=20)
+    #     ax[1].imshow(pred, cmap=plt.cm.gray, vmin=self.trunc_min, vmax=self.trunc_max)
+    #     ax[1].set_title('Result', fontsize=30)
+    #     ax[1].set_xlabel("PSNR: {:.4f}\nSSIM: {:.4f}\nRMSE: {:.4f}".format(pred_result[0],
+    #                                                                        pred_result[1],
+    #                                                                        pred_result[2]), fontsize=20)
+    #     ax[2].imshow(y, cmap=plt.cm.gray, vmin=self.trunc_min, vmax=self.trunc_max)
+    #     ax[2].set_title('Full-dose', fontsize=30)
+
+    #     f.savefig(os.path.join(self.save_path, 'fig', 'result_{}.png'.format(fig_name)))
+    #     plt.close()
 
     def train(self):
+        # print("train called")
         train_losses = []
         total_iters = 0
         start_time = time.time()
-        for epoch in range(1, self.num_epochs):
-            self.REDCNN.train(True)
 
-            for iter_, (x, y) in enumerate(self.data_loader):
+        for epoch in range(1, self.num_epochs + 1):
+            for iter_, sample in enumerate(self.data_loader):
                 total_iters += 1
+                x = sample['LQ'].float().to(self.device)  # Input images
+                y = sample['HQ'].float().to(self.device)  # Ground truth images
 
-                # add 1 channel
-                x = x.unsqueeze(0).float().to(self.device)
-                y = y.unsqueeze(0).float().to(self.device)
-
-                if self.patch_size: # patch training
-                    x = x.view(-1, 1, self.patch_size, self.patch_size)
-                    y = y.view(-1, 1, self.patch_size, self.patch_size)
-
+                # Forward pass
                 pred = self.REDCNN(x)
                 loss = self.criterion(pred, y)
-                self.REDCNN.zero_grad()
-                self.optimizer.zero_grad()
 
+                # Backward pass and optimize
+                self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+
                 train_losses.append(loss.item())
 
-                # print
+                # Logging
                 if total_iters % self.print_iters == 0:
-                    print("STEP [{}], EPOCH [{}/{}], ITER [{}/{}] \nLOSS: {:.8f}, TIME: {:.1f}s".format(total_iters, epoch, 
-                                                                                                        self.num_epochs, iter_+1, 
-                                                                                                        len(self.data_loader), loss.item(), 
-                                                                                                        time.time() - start_time))
+                    print(f"Epoch [{epoch}/{self.num_epochs}], Step [{iter_ + 1}/{len(self.data_loader)}], Loss: {loss.item():.4f}, Time: {time.time() - start_time:.1f}s", flush=True)
+
                 # learning rate decay
                 if total_iters % self.decay_iters == 0:
                     self.lr_decay()
-                # save model
+                # Save model periodically
                 if total_iters % self.save_iters == 0:
                     self.save_model(total_iters)
-                    np.save(os.path.join(self.save_path, 'loss_{}_iter.npy'.format(total_iters)), np.array(train_losses))
 
+        # Optionally save training losses for analysis
+        np.save(os.path.join(self.save_path, 'train_losses.npy'), np.array(train_losses))
+
+    # def train(self):
+    #     train_losses = []
+    #     total_iters = 0
+    #     start_time = time.time()
+    #     for epoch in range(1, self.num_epochs):
+    #         self.REDCNN.train(True)
+
+    #         for iter_, (x, y) in enumerate(self.data_loader):
+    #             total_iters += 1
+
+    #             # add 1 channel
+    #             x = x.unsqueeze(0).float().to(self.device)
+    #             y = y.unsqueeze(0).float().to(self.device)
+
+    #             if self.patch_size: # patch training
+    #                 x = x.view(-1, 1, self.patch_size, self.patch_size)
+    #                 y = y.view(-1, 1, self.patch_size, self.patch_size)
+
+    #             pred = self.REDCNN(x)
+    #             loss = self.criterion(pred, y)
+    #             self.REDCNN.zero_grad()
+    #             self.optimizer.zero_grad()
+
+    #             loss.backward()
+    #             self.optimizer.step()
+    #             train_losses.append(loss.item())
+
+    #             # print
+    #             if total_iters % self.print_iters == 0:
+    #                 print("STEP [{}], EPOCH [{}/{}], ITER [{}/{}] \nLOSS: {:.8f}, TIME: {:.1f}s".format(total_iters, epoch, 
+    #                                                                                                     self.num_epochs, iter_+1, 
+    #                                                                                                     len(self.data_loader), loss.item(), 
+    #                                                                                                     time.time() - start_time))
+    #             # learning rate decay
+    #             if total_iters % self.decay_iters == 0:
+    #                 self.lr_decay()
+    #             # save model
+    #             if total_iters % self.save_iters == 0:
+    #                 self.save_model(total_iters)
+    #                 np.save(os.path.join(self.save_path, 'loss_{}_iter.npy'.format(total_iters)), np.array(train_losses))
 
     def test(self):
         del self.REDCNN
@@ -161,17 +215,34 @@ class Solver(object):
         pred_psnr_avg, pred_ssim_avg, pred_rmse_avg = 0, 0, 0
 
         with torch.no_grad():
-            for i, (x, y) in enumerate(self.data_loader):
-                shape_ = x.shape[-1]
-                x = x.unsqueeze(0).float().to(self.device)
-                y = y.unsqueeze(0).float().to(self.device)
+            for i, batch_samples in enumerate(self.data_loader):
+                x = batch_samples['LQ'].to(self.device) # Input images
+                y = batch_samples['HQ'].to(self.device) # Ground truth images
+                # x = x.unsqueeze(0).float().to(self.device)
+                # y = y.unsqueeze(0).float().to(self.device)
 
+                # Assuming x, y, and pred are batch tensors with shapes [batch_size, channels, height, width]
+                # x = x[0].squeeze().cpu().detach().numpy()
+                # y = y[0].squeeze().cpu().detach().numpy()
+                # pred = self.REDCNN(x)
+                # pred = pred[0].squeeze().cpu().detach().numpy()
+
+                # x = x.unsqueeze(0).float().to(self.device)
+                # y = y.unsqueeze(0).float().to(self.device)
                 pred = self.REDCNN(x)
+                # pred = pred.unsqueeze(0).float().to(self.device)
+
+                # Assume shape_ is for reshaping or viewing the tensor. Adjust as needed.
+                shape_ = x.shape[-1] 
 
                 # denormalize, truncate
-                x = self.trunc(self.denormalize_(x.view(shape_, shape_).cpu().detach()))
-                y = self.trunc(self.denormalize_(y.view(shape_, shape_).cpu().detach()))
-                pred = self.trunc(self.denormalize_(pred.view(shape_, shape_).cpu().detach()))
+                x = self.trunc(self.denormalize_(x.cpu().detach()))
+                y = self.trunc(self.denormalize_(y.cpu().detach()))
+                pred = self.trunc(self.denormalize_(pred.cpu().detach()))
+
+                # x = self.trunc(self.denormalize_(x.view(shape_, shape_).cpu().detach()))
+                # y = self.trunc(self.denormalize_(y.view(shape_, shape_).cpu().detach()))
+                # pred = self.trunc(self.denormalize_(pred.view(shape_, shape_).cpu().detach()))
 
                 data_range = self.trunc_max - self.trunc_min
 
@@ -188,13 +259,63 @@ class Solver(object):
                     self.save_fig(x, y, pred, i, original_result, pred_result)
 
                 printProgressBar(i, len(self.data_loader),
-                                 prefix="Compute measurements ..",
-                                 suffix='Complete', length=25)
-            print('\n')
-            print('Original === \nPSNR avg: {:.4f} \nSSIM avg: {:.4f} \nRMSE avg: {:.4f}'.format(ori_psnr_avg/len(self.data_loader), 
+                                prefix="Compute measurements ..",
+                                suffix='Complete', length=25)
+        print('\n')
+        print('Original === \nPSNR avg: {:.4f} \nSSIM avg: {:.4f} \nRMSE avg: {:.4f}'.format(ori_psnr_avg/len(self.data_loader), 
                                                                                             ori_ssim_avg/len(self.data_loader), 
                                                                                             ori_rmse_avg/len(self.data_loader)))
-            print('\n')
-            print('Predictions === \nPSNR avg: {:.4f} \nSSIM avg: {:.4f} \nRMSE avg: {:.4f}'.format(pred_psnr_avg/len(self.data_loader), 
-                                                                                                  pred_ssim_avg/len(self.data_loader), 
-                                                                                                  pred_rmse_avg/len(self.data_loader)))
+        print('\n')
+        print('Predictions === \nPSNR avg: {:.4f} \nSSIM avg: {:.4f} \nRMSE avg: {:.4f}'.format(pred_psnr_avg/len(self.data_loader), 
+                                                                                                pred_ssim_avg/len(self.data_loader), 
+                                                                                                pred_rmse_avg/len(self.data_loader)))
+
+    # def test(self):
+    #     del self.REDCNN
+    #     # load
+    #     self.REDCNN = RED_CNN().to(self.device)
+    #     self.load_model(self.test_iters)
+
+    #     # compute PSNR, SSIM, RMSE
+    #     ori_psnr_avg, ori_ssim_avg, ori_rmse_avg = 0, 0, 0
+    #     pred_psnr_avg, pred_ssim_avg, pred_rmse_avg = 0, 0, 0
+
+    #     with torch.no_grad():
+    #         for i, (x, y) in enumerate(self.data_loader):
+    #             shape_ = x.shape[-1]
+    #             #Commented unsqueeze
+    #             # x = x.unsqueeze(0).float().to(self.device)
+    #             # y = y.unsqueeze(0).float().to(self.device)
+
+    #             pred = self.REDCNN(x)
+
+    #             # denormalize, truncate
+    #             x = self.trunc(self.denormalize_(x.view(shape_, shape_).cpu().detach()))
+    #             y = self.trunc(self.denormalize_(y.view(shape_, shape_).cpu().detach()))
+    #             pred = self.trunc(self.denormalize_(pred.view(shape_, shape_).cpu().detach()))
+
+    #             data_range = self.trunc_max - self.trunc_min
+
+    #             original_result, pred_result = compute_measure(x, y, pred, data_range)
+    #             ori_psnr_avg += original_result[0]
+    #             ori_ssim_avg += original_result[1]
+    #             ori_rmse_avg += original_result[2]
+    #             pred_psnr_avg += pred_result[0]
+    #             pred_ssim_avg += pred_result[1]
+    #             pred_rmse_avg += pred_result[2]
+
+    #             # save result figure
+    #             if self.result_fig:
+    #                 self.save_fig(x, y, pred, i, original_result, pred_result)
+
+    #             printProgressBar(i, len(self.data_loader),
+    #                              prefix="Compute measurements ..",
+    #                              suffix='Complete', length=25)
+    #         print('\n')
+    #         print('Original === \nPSNR avg: {:.4f} \nSSIM avg: {:.4f} \nRMSE avg: {:.4f}'.format(ori_psnr_avg/len(self.data_loader), 
+    #                                                                                         ori_ssim_avg/len(self.data_loader), 
+    #                                                                                         ori_rmse_avg/len(self.data_loader)))
+    #         print('\n')
+    #         print('Predictions === \nPSNR avg: {:.4f} \nSSIM avg: {:.4f} \nRMSE avg: {:.4f}'.format(pred_psnr_avg/len(self.data_loader), 
+    #                                                                                               pred_ssim_avg/len(self.data_loader), 
+    #                                                                                               pred_rmse_avg/len(self.data_loader)))

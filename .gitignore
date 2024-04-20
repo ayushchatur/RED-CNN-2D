@@ -1,0 +1,12 @@
+__pycache__/
+b8_lr4/
+env/
+ep10/
+ep300-400/
+epoch10and5_b8_lralso/
+loss_plots_train/
+save/
+save2/
+save3/
+save4_batchsize32_lre4_epoch200/
+save5_batchsize32_lre4_epoch200/
