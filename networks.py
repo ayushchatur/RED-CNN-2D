@@ -16,19 +16,6 @@ class RED_CNN(nn.Module):
         self.tconv3 = nn.ConvTranspose2d(out_ch, out_ch, kernel_size=5, stride=1, padding=0)
         self.tconv4 = nn.ConvTranspose2d(out_ch, out_ch, kernel_size=5, stride=1, padding=0)
         self.tconv5 = nn.ConvTranspose2d(out_ch, 1, kernel_size=5, stride=1, padding=0)
-         
-        # self.conv1 = nn.Conv3d(1, out_ch, kernel_size=(5,5,5), stride=1, padding=(0,0,0))#Try 5x5x5 for kernel
-        # self.conv2 = nn.Conv3d(out_ch, out_ch, kernel_size=(5,5,5), stride=1, padding=(0,0,0))#(0,0,0) padding?
-        # self.conv3 = nn.Conv3d(out_ch, out_ch, kernel_size=(5,5,5), stride=1, padding=(0,0,0))
-        # self.conv4 = nn.Conv3d(out_ch, out_ch, kernel_size=(5,5,5), stride=1, padding=(0,0,0))
-        # self.conv5 = nn.Conv3d(out_ch, out_ch, kernel_size=(5,5,5), stride=1, padding=(0,0,0))
-
-        # self.tconv1 = nn.ConvTranspose3d(out_ch, out_ch, kernel_size=(5,5,5), stride=1, padding=(0,0,0))
-        # self.tconv2 = nn.ConvTranspose3d(out_ch, out_ch, kernel_size=(5,5,5), stride=1, padding=(0,0,0))
-        # self.tconv3 = nn.ConvTranspose3d(out_ch, out_ch, kernel_size=(5,5,5), stride=1, padding=(0,0,0))
-        # self.tconv4 = nn.ConvTranspose3d(out_ch, out_ch, kernel_size=(5,5,5), stride=1, padding=(0,0,0))
-        # self.tconv5 = nn.ConvTranspose3d(out_ch, 1, kernel_size=(5,5,5), stride=1, padding=(0,0,0))
-
         self.relu = nn.ReLU()
 
     def forward(self, x):

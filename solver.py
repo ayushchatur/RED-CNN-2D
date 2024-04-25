@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 import torch
 import torch.nn as nn
@@ -18,7 +18,7 @@ from measure import compute_measure
 class Solver(object):
     def __init__(self, args, data_loader):
         self.mode = args.mode
-        self.load_mode = args.load_mode
+
         self.data_loader = data_loader
 
         if args.device:
@@ -107,36 +107,17 @@ class Solver(object):
         f.savefig(os.path.join(self.save_path, 'fig', 'result_{}.png'.format(fig_name)))
         plt.close(f)  # Close the figure to free memory
 
-    # def save_fig(self, x, y, pred, fig_name, original_result, pred_result):
-    #     x, y, pred = x.numpy(), y.numpy(), pred.numpy()
-    #     f, ax = plt.subplots(1, 3, figsize=(30, 10))
-    #     ax[0].imshow(x, cmap=plt.cm.gray, vmin=self.trunc_min, vmax=self.trunc_max)
-    #     ax[0].set_title('Quarter-dose', fontsize=30)
-    #     ax[0].set_xlabel("PSNR: {:.4f}\nSSIM: {:.4f}\nRMSE: {:.4f}".format(original_result[0],
-    #                                                                        original_result[1],
-    #                                                                        original_result[2]), fontsize=20)
-    #     ax[1].imshow(pred, cmap=plt.cm.gray, vmin=self.trunc_min, vmax=self.trunc_max)
-    #     ax[1].set_title('Result', fontsize=30)
-    #     ax[1].set_xlabel("PSNR: {:.4f}\nSSIM: {:.4f}\nRMSE: {:.4f}".format(pred_result[0],
-    #                                                                        pred_result[1],
-    #                                                                        pred_result[2]), fontsize=20)
-    #     ax[2].imshow(y, cmap=plt.cm.gray, vmin=self.trunc_min, vmax=self.trunc_max)
-    #     ax[2].set_title('Full-dose', fontsize=30)
-
-    #     f.savefig(os.path.join(self.save_path, 'fig', 'result_{}.png'.format(fig_name)))
-    #     plt.close()
-
     def train(self):
         # print("train called")
-        train_losses = []
+        train_losses = defaultdict(list)
         total_iters = 0
         start_time = time.time()
 
         for epoch in range(1, self.num_epochs + 1):
             for iter_, sample in enumerate(self.data_loader):
                 total_iters += 1
-                x = sample['LQ'].float().to(self.device)  # Input images
-                y = sample['HQ'].float().to(self.device)  # Ground truth images
+                x = sample['LQ'].to(self.device)  # Input images
+                y = sample['HQ'].to(self.device)  # Ground truth images
 
                 # Forward pass
                 pred = self.REDCNN(x)
@@ -147,7 +128,7 @@ class Solver(object):
                 loss.backward()
                 self.optimizer.step()
 
-                train_losses.append(loss.item())
+                train_losses[epoch].append(loss.item())
 
                 # Logging
                 if total_iters % self.print_iters == 0:
@@ -159,50 +140,10 @@ class Solver(object):
                 # Save model periodically
                 if total_iters % self.save_iters == 0:
                     self.save_model(total_iters)
-
+        print("~~~~~~~Training completed~~~~~~~~~")
         # Optionally save training losses for analysis
         np.save(os.path.join(self.save_path, 'train_losses.npy'), np.array(train_losses))
 
-    # def train(self):
-    #     train_losses = []
-    #     total_iters = 0
-    #     start_time = time.time()
-    #     for epoch in range(1, self.num_epochs):
-    #         self.REDCNN.train(True)
-
-    #         for iter_, (x, y) in enumerate(self.data_loader):
-    #             total_iters += 1
-
-    #             # add 1 channel
-    #             x = x.unsqueeze(0).float().to(self.device)
-    #             y = y.unsqueeze(0).float().to(self.device)
-
-    #             if self.patch_size: # patch training
-    #                 x = x.view(-1, 1, self.patch_size, self.patch_size)
-    #                 y = y.view(-1, 1, self.patch_size, self.patch_size)
-
-    #             pred = self.REDCNN(x)
-    #             loss = self.criterion(pred, y)
-    #             self.REDCNN.zero_grad()
-    #             self.optimizer.zero_grad()
-
-    #             loss.backward()
-    #             self.optimizer.step()
-    #             train_losses.append(loss.item())
-
-    #             # print
-    #             if total_iters % self.print_iters == 0:
-    #                 print("STEP [{}], EPOCH [{}/{}], ITER [{}/{}] \nLOSS: {:.8f}, TIME: {:.1f}s".format(total_iters, epoch, 
-    #                                                                                                     self.num_epochs, iter_+1, 
-    #                                                                                                     len(self.data_loader), loss.item(), 
-    #                                                                                                     time.time() - start_time))
-    #             # learning rate decay
-    #             if total_iters % self.decay_iters == 0:
-    #                 self.lr_decay()
-    #             # save model
-    #             if total_iters % self.save_iters == 0:
-    #                 self.save_model(total_iters)
-    #                 np.save(os.path.join(self.save_path, 'loss_{}_iter.npy'.format(total_iters)), np.array(train_losses))
 
     def test(self):
         del self.REDCNN
