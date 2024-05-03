@@ -41,7 +41,6 @@ class Solver(object):
         self.test_iters = args.test_iters
         self.result_fig = args.result_fig
 
-        self.patch_size = args.patch_size
 
         self.REDCNN = RED_CNN()
         if (self.multi_gpu) and (torch.cuda.device_count() > 1):
