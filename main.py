@@ -118,7 +118,7 @@ def main(args):
     try:
         if args.mode == 'test':
             dataset_test = CTDataset(root_hq_dir_test, root_lq_dir_test, 784)  # dataset test length = 914
-            test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test, num_replicas=args.world_size,
+            test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test, num_replicas=1,
                                                                            rank=0)
 
             data_loader_test = DataLoader(dataset=dataset_test, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, sampler=test_sampler)
