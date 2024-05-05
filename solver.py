@@ -162,6 +162,7 @@ class Solver(object):
                 maxs = batch_samples['max']
                 mins = batch_samples['min']
                 en_img = self.REDCNN(lq)
+                print('forwdpass done')
                 gen_visualization_files(en_img,target, lq, fname, "test", maxs, mins)
 
         print("~~~~~~~~~~~~~~~~~~ everything completed ~~~~~~~~~~~~~~~~~~~~~~~~")
