@@ -25,6 +25,7 @@ class Solver(object):
             self.device = torch.device(args.device)
         else:
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print('device detected: ', str(self.device))
 
         self.norm_range_min = args.norm_range_min
         self.norm_range_max = args.norm_range_max
