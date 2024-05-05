@@ -9,11 +9,12 @@ from PIL import Image
 from torch.nn import MSELoss
 
 from matplotlib import pyplot as plt
+@torch.jit.ignore
 def gaussian(window_size, sigma):
-    gauss = torch.Tensor([exp(-(x - window_size//2)**2/float(2*sigma**2)) for x in range(window_size)])
-    return gauss/gauss.sum()
+    gauss = torch.Tensor([exp(-(x - window_size // 2) ** 2 / float(2 * sigma ** 2)) for x in range(window_size)])
+    return gauss / gauss.sum()
 
-
+@torch.jit.ignore
 def create_window(window_size, channel=1):
     _1D_window = gaussian(window_size, 1.5).unsqueeze(1)
     _2D_window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
@@ -22,6 +23,7 @@ def create_window(window_size, channel=1):
 
 
 
+@torch.jit.ignore
 def ssim(img1, img2, window_size=11, window=None, size_average=True, full=False, val_range=None):
     # Value range can be different from 255. Other common ranges are 1 (sigmoid) and 2 (tanh).
     if val_range is None:
@@ -73,7 +75,7 @@ def ssim(img1, img2, window_size=11, window=None, size_average=True, full=False,
         return ret, cs
     return ret
 
-
+@torch.jit.ignore
 def msssim(img1, img2, window_size=11, size_average=True, val_range=None, normalize=None):
     device = img1.device
     weights = torch.FloatTensor([0.0448, 0.2856, 0.3001, 0.2363, 0.1333]).to(device)
@@ -98,7 +100,7 @@ def msssim(img1, img2, window_size=11, size_average=True, val_range=None, normal
     mcs = torch.stack(mcs)
 
     # Simple normalize (not compliant with original definition)
-
+    # TODO: remove support for normalize == True (kept for backward support)
     if normalize == "simple" or normalize == True:
         ssims = (ssims + 1) / 2
         mcs = (mcs + 1) / 2
@@ -106,17 +108,15 @@ def msssim(img1, img2, window_size=11, size_average=True, val_range=None, normal
     pow1 = mcs ** weights
     pow2 = ssims ** weights
 
-
     # From Matlab implementation https://ece.uwaterloo.ca/~z70wang/research/iwssim/
     output = torch.prod(pow1[:-1] * pow2[-1])
-    if(torch.isnan(output)):
+    if (torch.isnan(output)):
         print("NAN")
         print(pow1)
         print(pow2)
         print(ssims)
         print(mcs)
         exit()
-
 
     return output
 
@@ -133,6 +133,8 @@ class SSIM(torch.nn.Module):
         self.channel = 1
         self.window = create_window(window_size)
 
+
+    @torch.jit.ignore
     def forward(self, img1, img2):
         (_, channel, _, _) = img1.size()
 
@@ -145,6 +147,7 @@ class SSIM(torch.nn.Module):
 
         return ssim(img1, img2, window=window, window_size=self.window_size, size_average=self.size_average)
 
+
 class MSSSIM(torch.nn.Module):
     def __init__(self, window_size=11, size_average=True, channel=3):
         super(MSSSIM, self).__init__()
@@ -153,9 +156,8 @@ class MSSSIM(torch.nn.Module):
         self.channel = channel
 
     def forward(self, img1, img2):
-
+        # TODO: store window between calls if possible
         return msssim(img1, img2, window_size=self.window_size, size_average=self.size_average, normalize="simple")
-        #return msssim(img1, img2, window_size=self.window_size, size_average=self.size_average)
 
 
 def gen_visualization_files(outputs, targets, inputs, file_names, val_test, maxs, mins):
@@ -195,8 +197,8 @@ def gen_visualization_files(outputs, targets, inputs, file_names, val_test, maxs
     for i in range(num_img):
         # output_img = outputs[i, 0, :, :].cpu().detach().numpy()
         output_img = outputs[i, 0, :, :].cpu().detach().numpy()
-        target_img = targets[i, 0, :, :].cpu().numpy()
-        input_img = inputs[i, 0, :, :].cpu().numpy()
+        target_img = targets[i, 0, :, :].cpu().detach().numpy()
+        input_img = inputs[i, 0, :, :].cpu().detach().numpy()
 
         output_img_mapped = (output_img * (maxs[i].item() - mins[i].item())) + mins[i].item()
         target_img_mapped = (target_img * (maxs[i].item() - mins[i].item())) + mins[i].item()
