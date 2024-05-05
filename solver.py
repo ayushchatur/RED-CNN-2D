@@ -5,7 +5,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from collections import OrderedDict, defaultdict
-
+from PIL import Image
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -20,6 +20,7 @@ class Solver(object):
         self.mode = args.mode
 
         self.data_loader = data_loader
+        self.batch_size = args.batch_size
 
         if args.device:
             self.device = torch.device(args.device)
@@ -159,12 +160,18 @@ class Solver(object):
                 print('running testing batch: ', i)
                 lq = batch_samples['LQ'].to(self.device) # Input images
                 target = batch_samples['HQ'].to(self.device) # Ground truth images
-                fname = batch_samples['vol']
+                file_name = batch_samples['vol']
                 maxs = batch_samples['max']
                 mins = batch_samples['min']
                 en_img = self.REDCNN(lq)
+                outputs_np = en_img.cpu().detach().numpy()
                 print('forwdpass done')
-                gen_visualization_files(en_img,target, lq, fname, "test", maxs, mins)
+                for m in range(self.batch_size):
+                    file_name1 = file_name[m]
+                    file_name1 = file_name1.replace(".IMA", ".tif")
+                    im = Image.fromarray(outputs_np[m, 0, :, :])
+                    im.save('reconstructed_images/test/' + file_name1)
+                gen_visualization_files(en_img,target, lq, file_name, "test", maxs, mins)
 
         print("~~~~~~~~~~~~~~~~~~ everything completed ~~~~~~~~~~~~~~~~~~~~~~~~")
         data1 = np.loadtxt('./visualize/test/mse_loss_target_out')
