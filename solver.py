@@ -151,9 +151,10 @@ class Solver(object):
         # load
         self.REDCNN = RED_CNN().to(self.device)
         self.load_model(self.test_iters)
-
+        print('model loaded successfully')
         with torch.no_grad():
             for i, batch_samples in enumerate(self.data_loader):
+                print('running testing batch: ', i)
                 lq = batch_samples['LQ'].to(self.device) # Input images
                 target = batch_samples['HQ'].to(self.device) # Ground truth images
                 fname = batch_samples['vol']
