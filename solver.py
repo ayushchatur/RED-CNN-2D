@@ -153,6 +153,7 @@ class Solver(object):
         self.REDCNN = RED_CNN().to(self.device)
         self.load_model(self.test_iters)
         print('model loaded successfully')
+
         with torch.no_grad():
             for i, batch_samples in enumerate(self.data_loader):
                 print('running testing batch: ', i)

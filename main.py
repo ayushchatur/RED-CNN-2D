@@ -117,12 +117,16 @@ def main(args):
     data_loader_test = None
     try:
         if args.mode == 'test':
-            dataset_test = CTDataset(root_hq_dir_test, root_lq_dir_test, 914)  # dataset test length = 914
-            data_loader_test = DataLoader(dataset=dataset_test, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
+            dataset_test = CTDataset(root_hq_dir_test, root_lq_dir_test, 784)  # dataset test length = 914
+            test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test, num_replicas=args.world_size,
+                                                                           rank=0)
+
+            data_loader_test = DataLoader(dataset=dataset_test, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, sampler=test_sampler)
         else:
             # For training, load the training dataset
             dataset_ = CTDataset(root_hq_dir, root_lq_dir, 5120)  # Adjust 5120 as needed for training
             data_loader = DataLoader(dataset=dataset_, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
+
 
         solver = Solver(args, data_loader if args.mode == 'train' else data_loader_test)
 
