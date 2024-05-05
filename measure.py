@@ -262,9 +262,9 @@ def gen_visualization_files(outputs, targets, inputs, file_names, val_test, maxs
         MSSSIM_loss_out_target.append(1 - MSSSIM()(output_img, target_img))
         MSSSIM_loss_in_target.append(1 - MSSSIM()(input_img, target_img))
         print('ms-ssim done')
-        SSIM_loss_out_target.append(1 - SSIM()(output_img, target_img))
-        SSIM_loss_in_target.append(1 - SSIM()(input_img, target_img))
-        print('ssim done')
+        # SSIM_loss_out_target.append(1 - SSIM()(output_img, target_img))
+        # SSIM_loss_in_target.append(1 - SSIM()(input_img, target_img))
+        # print('ssim done')
 
     with open(out_root + "msssim_loss_target_out", 'a') as f:
         for item in MSSSIM_loss_out_target:
@@ -274,13 +274,13 @@ def gen_visualization_files(outputs, targets, inputs, file_names, val_test, maxs
         for item in MSSSIM_loss_in_target:
             f.write("%f\n" % item)
 
-    with open(out_root + "ssim_loss_target_out", 'a') as f:
-        for item in SSIM_loss_out_target:
-            f.write("%f\n" % item)
-
-    with open(out_root + "ssim_loss_target_in", 'a') as f:
-        for item in SSIM_loss_in_target:
-            f.write("%f\n" % item)
+    # with open(out_root + "ssim_loss_target_out", 'a') as f:
+    #     for item in SSIM_loss_out_target:
+    #         f.write("%f\n" % item)
+    #
+    # with open(out_root + "ssim_loss_target_in", 'a') as f:
+    #     for item in SSIM_loss_in_target:
+    #         f.write("%f\n" % item)
 
     with open(out_root + "mse_loss_target_out", 'a') as f:
         for item in MSE_loss_out_target:
