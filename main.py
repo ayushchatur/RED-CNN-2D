@@ -143,7 +143,7 @@ if __name__ == "__main__":
     # parser.add_argument('--load_mode', type=int, default=0)
     # # parser.add_argument('--data_path', type=str, default='/projects/synergy_lab/garvit217/data_3d_2/train')
     # parser.add_argument('--saved_path', type=str, default='./npy_img3/')#same as below
-    parser.add_argument('--save_path', type=str, default='.//')# changed from save to save2
+    parser.add_argument('--save_path', type=str, default='./weights')# changed from save to save2
     # parser.add_argument('--test_patient', type=str, default='L506')
     parser.add_argument('--result_fig', type=bool, default=True)
 
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     parser.add_argument('--print_iters', type=int, default=10)
     parser.add_argument('--decay_iters', type=int, default=3000)
     parser.add_argument('--save_iters', type=int, default=1000)
-    parser.add_argument('--test_iters', type=int, default=1000)
+    parser.add_argument('--test_iters', type=int, default=1)
 
     parser.add_argument('--lr', type=float, default=1e-4)
     #trying e-4 now(From e-5) changing batch size

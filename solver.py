@@ -12,7 +12,7 @@ import torch.optim as optim
 
 from prep import printProgressBar
 from networks import RED_CNN
-from measure import compute_measure
+from measure import compute_measure, gen_visualization_files
 
 
 class Solver(object):
@@ -86,6 +86,8 @@ class Solver(object):
         mat[mat >= self.trunc_max] = self.trunc_max
         return mat
 
+
+
     def save_fig(self, x, y, pred, fig_name, original_result, pred_result):
     # Select a single example from the batch for visualization
     # Assuming x, y, and pred are torch tensors of shape [batch_size, channels, height, width]
@@ -150,112 +152,25 @@ class Solver(object):
         self.REDCNN = RED_CNN().to(self.device)
         self.load_model(self.test_iters)
 
-        # compute PSNR, SSIM, RMSE
-        ori_psnr_avg, ori_ssim_avg, ori_rmse_avg = 0, 0, 0
-        pred_psnr_avg, pred_ssim_avg, pred_rmse_avg = 0, 0, 0
-
         with torch.no_grad():
             for i, batch_samples in enumerate(self.data_loader):
-                x = batch_samples['LQ'].to(self.device) # Input images
-                y = batch_samples['HQ'].to(self.device) # Ground truth images
-                # x = x.unsqueeze(0).float().to(self.device)
-                # y = y.unsqueeze(0).float().to(self.device)
+                lq = batch_samples['LQ'].to(self.device) # Input images
+                target = batch_samples['HQ'].to(self.device) # Ground truth images
+                fname = batch_samples['vol']
+                maxs = batch_samples['max']
+                mins = batch_samples['min']
+                en_img = self.REDCNN(lq)
+                gen_visualization_files(en_img,target, lq, fname, "test", maxs, mins)
 
-                # Assuming x, y, and pred are batch tensors with shapes [batch_size, channels, height, width]
-                # x = x[0].squeeze().cpu().detach().numpy()
-                # y = y[0].squeeze().cpu().detach().numpy()
-                # pred = self.REDCNN(x)
-                # pred = pred[0].squeeze().cpu().detach().numpy()
-
-                # x = x.unsqueeze(0).float().to(self.device)
-                # y = y.unsqueeze(0).float().to(self.device)
-                pred = self.REDCNN(x)
-                # pred = pred.unsqueeze(0).float().to(self.device)
-
-                # Assume shape_ is for reshaping or viewing the tensor. Adjust as needed.
-                shape_ = x.shape[-1] 
-
-                # denormalize, truncate
-                x = self.trunc(self.denormalize_(x.cpu().detach()))
-                y = self.trunc(self.denormalize_(y.cpu().detach()))
-                pred = self.trunc(self.denormalize_(pred.cpu().detach()))
-
-                # x = self.trunc(self.denormalize_(x.view(shape_, shape_).cpu().detach()))
-                # y = self.trunc(self.denormalize_(y.view(shape_, shape_).cpu().detach()))
-                # pred = self.trunc(self.denormalize_(pred.view(shape_, shape_).cpu().detach()))
-
-                data_range = self.trunc_max - self.trunc_min
-
-                original_result, pred_result = compute_measure(x, y, pred, data_range)
-                ori_psnr_avg += original_result[0]
-                ori_ssim_avg += original_result[1]
-                ori_rmse_avg += original_result[2]
-                pred_psnr_avg += pred_result[0]
-                pred_ssim_avg += pred_result[1]
-                pred_rmse_avg += pred_result[2]
-
-                # save result figure
-                if self.result_fig:
-                    self.save_fig(x, y, pred, i, original_result, pred_result)
-
-                printProgressBar(i, len(self.data_loader),
-                                prefix="Compute measurements ..",
-                                suffix='Complete', length=25)
-        print('\n')
-        print('Original === \nPSNR avg: {:.4f} \nSSIM avg: {:.4f} \nRMSE avg: {:.4f}'.format(ori_psnr_avg/len(self.data_loader), 
-                                                                                            ori_ssim_avg/len(self.data_loader), 
-                                                                                            ori_rmse_avg/len(self.data_loader)))
-        print('\n')
-        print('Predictions === \nPSNR avg: {:.4f} \nSSIM avg: {:.4f} \nRMSE avg: {:.4f}'.format(pred_psnr_avg/len(self.data_loader), 
-                                                                                                pred_ssim_avg/len(self.data_loader), 
-                                                                                                pred_rmse_avg/len(self.data_loader)))
-
-    # def test(self):
-    #     del self.REDCNN
-    #     # load
-    #     self.REDCNN = RED_CNN().to(self.device)
-    #     self.load_model(self.test_iters)
-
-    #     # compute PSNR, SSIM, RMSE
-    #     ori_psnr_avg, ori_ssim_avg, ori_rmse_avg = 0, 0, 0
-    #     pred_psnr_avg, pred_ssim_avg, pred_rmse_avg = 0, 0, 0
-
-    #     with torch.no_grad():
-    #         for i, (x, y) in enumerate(self.data_loader):
-    #             shape_ = x.shape[-1]
-    #             #Commented unsqueeze
-    #             # x = x.unsqueeze(0).float().to(self.device)
-    #             # y = y.unsqueeze(0).float().to(self.device)
-
-    #             pred = self.REDCNN(x)
-
-    #             # denormalize, truncate
-    #             x = self.trunc(self.denormalize_(x.view(shape_, shape_).cpu().detach()))
-    #             y = self.trunc(self.denormalize_(y.view(shape_, shape_).cpu().detach()))
-    #             pred = self.trunc(self.denormalize_(pred.view(shape_, shape_).cpu().detach()))
-
-    #             data_range = self.trunc_max - self.trunc_min
-
-    #             original_result, pred_result = compute_measure(x, y, pred, data_range)
-    #             ori_psnr_avg += original_result[0]
-    #             ori_ssim_avg += original_result[1]
-    #             ori_rmse_avg += original_result[2]
-    #             pred_psnr_avg += pred_result[0]
-    #             pred_ssim_avg += pred_result[1]
-    #             pred_rmse_avg += pred_result[2]
-
-    #             # save result figure
-    #             if self.result_fig:
-    #                 self.save_fig(x, y, pred, i, original_result, pred_result)
-
-    #             printProgressBar(i, len(self.data_loader),
-    #                              prefix="Compute measurements ..",
-    #                              suffix='Complete', length=25)
-    #         print('\n')
-    #         print('Original === \nPSNR avg: {:.4f} \nSSIM avg: {:.4f} \nRMSE avg: {:.4f}'.format(ori_psnr_avg/len(self.data_loader), 
-    #                                                                                         ori_ssim_avg/len(self.data_loader), 
-    #                                                                                         ori_rmse_avg/len(self.data_loader)))
-    #         print('\n')
-    #         print('Predictions === \nPSNR avg: {:.4f} \nSSIM avg: {:.4f} \nRMSE avg: {:.4f}'.format(pred_psnr_avg/len(self.data_loader), 
-    #                                                                                               pred_ssim_avg/len(self.data_loader), 
-    #                                                                                               pred_rmse_avg/len(self.data_loader)))
+    print("~~~~~~~~~~~~~~~~~~ everything completed ~~~~~~~~~~~~~~~~~~~~~~~~")
+    data1 = np.loadtxt('./visualize/test/mse_loss_target_out')
+    print("size of metrics: " + str(data1.shape))
+    data2 = np.loadtxt('./visualize/test/msssim_loss_target_out')
+    # print("size of out target: " + str(data2.shape))
+    data3 = np.loadtxt('./visualize/test/ssim_loss_target_out')
+    # print("size of out target: " + str(data3.shape))
+    # data3 = np.append(data1, data2)
+    # print("size of append target: " + str(data3.shape))
+    print("Final avergae MSE: ", 100 - (100 * np.average(data1)), "std dev.: ", np.std(data1))
+    print("Final average MSSSIM LOSS: " + str(100 - (100 * np.average(data2))), 'std dev : ', np.std(data2))
+    print("Final average SSIM LOSS: " + str(100 - (100 * np.average(data3))),'std dev : ', np.std(data3))
