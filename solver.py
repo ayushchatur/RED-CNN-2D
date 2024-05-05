@@ -182,6 +182,6 @@ class Solver(object):
         # print("size of out target: " + str(data3.shape))
         # data3 = np.append(data1, data2)
         # print("size of append target: " + str(data3.shape))
-        print("Final avergae MSE: ", 100 - (100 * np.average(data1)), "std dev.: ", np.std(data1))
-        print("Final average MSSSIM LOSS: " + str(100 - (100 * np.average(data2))), 'std dev : ', np.std(data2))
+        print("Final avergae MSE: ", np.average(data1), "std dev.: ", np.std(data1))
+        print("Final average MSSSIM: " + 100 * np.average(data2), 'std dev : ', np.std(data2))
         # print("Final average SSIM LOSS: " + str(100 - (100 * np.average(data3))),'std dev : ', np.std(data3))
